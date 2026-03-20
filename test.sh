@@ -20,3 +20,5 @@ assert() {
 assert 42 '42'
 assert  3 '1+2'
 assert  1 '3 - 2'
+
+echo "All tests passed!"
