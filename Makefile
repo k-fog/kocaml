@@ -2,7 +2,7 @@ TARGET       = kocaml
 OCAMLOPT     = ocamlopt
 OCAMLDEP     = ocamldep
 OCAMLOPTFLAGS=
-SRCS         = lexer.ml main.ml
+SRCS         = span.ml error.ml token.ml lexer.ml ast.ml parser.ml codegen.ml main.ml
 CMX          = $(SRCS:.ml=.cmx)
 DEPS         = .depend
 
