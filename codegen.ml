@@ -6,6 +6,11 @@ let gen ast =
   let rec gen_expr ast =
     match ast with
     | Int n -> emitf buf "  push %d" n
+    | Neg e ->
+        gen_expr e;
+        emitf buf "  pop rax";
+        emitf buf "  neg rax";
+        emitf buf "  push rax"
     | BinExpr (op, lhs, rhs) ->
         gen_expr lhs;
         gen_expr rhs;

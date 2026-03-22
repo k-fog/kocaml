@@ -13,7 +13,7 @@ let consume st =
 
 let expect st expected =
   let t = peek st in
-  if t = expected then advance st else failwith "unexpected token"
+  if t.kind = expected then advance st else failwith "unexpected token"
 
 let precedence token_kind =
   let open Token in
@@ -31,6 +31,18 @@ let rec parse_prefix st =
   | Token.Int n ->
       advance st;
       Ast.Int n
+  | Token.LParen ->
+      advance st;
+      let e = parse_expr st in
+      expect st Token.RParen;
+      e
+  | Token.Plus ->
+      advance st;
+      parse_prefix st
+  | Token.Minus ->
+      advance st;
+      let e = parse_prefix st in
+      Ast.Neg e
   | _ -> Error.raise_parse tok.span "expected integer"
 
 and parse_binop st min_prec =
