@@ -13,7 +13,12 @@ let consume st =
 
 let expect st expected =
   let t = peek st in
-  if t.kind = expected then advance st else failwith "unexpected token"
+  if t.kind = expected then advance st
+  else
+    Error.raise_parse t.span
+      (Printf.sprintf "expected %s but got %s"
+         (Token.string_of_kind expected)
+         (Token.string_of_kind t.kind))
 
 let precedence token_kind =
   let open Token in
@@ -43,7 +48,7 @@ let rec parse_prefix st =
       advance st;
       let e = parse_prefix st in
       Ast.Neg e
-  | _ -> Error.raise_parse tok.span "expected integer"
+  | _ -> Error.raise_parse tok.span "cannot parse"
 
 and parse_binop st min_prec =
   let rec loop lhs =
@@ -62,7 +67,7 @@ and parse_binop st min_prec =
           | Token.Minus -> Ast.BinExpr (Sub, lhs, rhs)
           | Token.Star -> Ast.BinExpr (Mul, lhs, rhs)
           | Token.Slash -> Ast.BinExpr (Div, lhs, rhs)
-          | _ -> failwith "internal error"
+          | _ -> Error.raise_parse tok.span "internal error"
         in
         loop lhs')
     else lhs
