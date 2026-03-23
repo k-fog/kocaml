@@ -36,6 +36,9 @@ let rec parse_prefix st =
   | Token.Int n ->
       advance st;
       Ast.int n tok.span
+  | Token.Var var ->
+      advance st;
+      Ast.var var tok.span
   | Token.LParen ->
       advance st;
       let e = parse_expr st in
@@ -48,6 +51,7 @@ let rec parse_prefix st =
       advance st;
       let e = parse_prefix st in
       Ast.neg e (Span.merge tok.span e.span)
+  | Token.Let -> parse_let st
   | _ -> Error.raise_parse tok.span "cannot parse"
 
 and parse_binop st min_prec =
@@ -74,6 +78,18 @@ and parse_binop st min_prec =
   in
   let lhs = parse_prefix st in
   loop lhs
+
+and parse_let st =
+  expect st Token.Let;
+  let tok = consume st in
+  match tok.kind with
+  | Token.Var var ->
+      expect st Token.Equal;
+      let e1 = parse_expr st in
+      expect st Token.In;
+      let e2 = parse_expr st in
+      Ast.let_expr var e1 e2 (Span.merge tok.span e2.span)
+  | _ -> Error.raise_parse tok.span "expected identifier"
 
 and parse_expr st = parse_binop st 0
 and parse tokens = tokens |> make_token_stream |> parse_expr

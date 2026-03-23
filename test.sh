@@ -27,5 +27,7 @@ assert  9 '(1+2)*3'
 assert  3 '1+((4-3)*2)'
 assert  3 '+3'
 assert  3 '- -3'
-
+assert  6 'let x = 3 in x + x'
+assert 13 'let x = 1 + 2 in let y = x * 3 in y + 4'
+assert 10 '(let x = 1 + 2 in x) + (let y = 3 in y + 4)'
 echo "All tests passed!"
