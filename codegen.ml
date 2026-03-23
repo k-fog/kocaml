@@ -1,34 +1,59 @@
 let emitf buf fmt = Printf.bprintf buf (fmt ^^ "\n")
 
 module Env = struct
-  type t = { table : (string, int) Hashtbl.t; mutable offset : int }
+  type frame = { mutable size : int }
 
-  let create = { table = Hashtbl.create 8; offset = 0 }
+  type t = {
+    table : (string, int) Hashtbl.t;
+    mutable offset : int;
+    frame : frame;
+  }
 
-  let new_offset env var =
-    env.offset <- env.offset + 4;
-    Hashtbl.add env.table var env.offset;
+  let create () =
+    { table = Hashtbl.create 16; offset = 0; frame = { size = 0 } }
+
+  let copy env =
+    { table = Hashtbl.copy env.table; offset = env.offset; frame = env.frame }
+
+  let add_local env name =
+    env.offset <- env.offset + 8;
+    if env.offset > env.frame.size then env.frame.size <- env.offset;
+    Hashtbl.replace env.table name env.offset;
     env.offset
 
-  let get_offset env var = Hashtbl.find env.table var
+  let find env name = Hashtbl.find env.table name
+  let mem env name = Hashtbl.mem env.table name
 end
 
-let rec gen_expr buf ast env =
+module Label = struct
+  let counter = ref 0
+
+  let create () =
+    let label = string_of_int !counter in
+    incr counter;
+    label
+end
+
+type state = { funs : Buffer.t }
+
+let rec gen_expr st buf ast env =
   let open Ast in
   match ast.desc with
   | Int n -> emitf buf "  push %d" n
   | Var var ->
-      let offset = Env.get_offset env var in
+      if not (Env.mem env var) then
+        Error.raise_codegen ast.span (Printf.sprintf "unbound variable: %s" var);
+      let offset = Env.find env var in
       emitf buf "  mov rax, [rbp-%d]" offset;
       emitf buf "  push rax"
   | Neg e ->
-      gen_expr buf e env;
+      gen_expr st buf e env;
       emitf buf "  pop rax";
       emitf buf "  neg rax";
       emitf buf "  push rax"
   | BinExpr (op, lhs, rhs) ->
-      gen_expr buf lhs env;
-      gen_expr buf rhs env;
+      gen_expr st buf lhs env;
+      gen_expr st buf rhs env;
       emitf buf "  pop rdi";
       emitf buf "  pop rax";
       (match op with
@@ -40,26 +65,56 @@ let rec gen_expr buf ast env =
           emitf buf "  idiv rdi");
       emitf buf "  push rax"
   | Let (var, e1, e2) ->
-      gen_expr buf e1 env;
+      gen_expr st buf e1 env;
       emitf buf "  pop rax";
-      let offset = Env.new_offset env var in
+      let env' = Env.copy env in
+      let offset = Env.add_local env' var in
       emitf buf "  mov [rbp-%d], rax" offset;
-      gen_expr buf e2 env
+      gen_expr st buf e2 env'
+  | Fun (var, body) ->
+      let label = "lambda_" ^ Label.create () in
+      let fn_env = Env.create () in
+      let arg_offset = Env.add_local fn_env var in
+      let fn_body = Buffer.create 256 in
+      gen_expr st fn_body body fn_env;
+      emitf fn_body "  pop rax";
+      emitf st.funs "%s:" label;
+      emitf st.funs "  push rbp";
+      emitf st.funs "  mov rbp, rsp";
+      emitf st.funs "  sub rsp, %d" fn_env.frame.size;
+      emitf st.funs "  mov [rbp-%d], rdi" arg_offset;
+      Buffer.add_buffer st.funs fn_body;
+      emitf st.funs "  mov rsp, rbp";
+      emitf st.funs "  pop rbp";
+      emitf st.funs "  ret";
+      emitf buf "  lea rax, [rip+%s]" label;
+      emitf buf "  push rax"
+  | App (fn, arg) ->
+      gen_expr st buf fn env;
+      gen_expr st buf arg env;
+      emitf buf "  pop rdi";
+      emitf buf "  pop rax";
+      emitf buf "  call rax";
+      emitf buf "  push rax"
 
 let gen ast =
-  let env = Env.create in
-  let buf_main = Buffer.create 256 in
-  gen_expr buf_main ast env;
-  emitf buf_main "  pop rax";
-  emitf buf_main "  mov rsp, rbp";
-  emitf buf_main "  pop rbp";
-  emitf buf_main "  ret";
-  let buf = Buffer.create 256 in
-  emitf buf ".intel_syntax noprefix";
-  emitf buf ".globl main";
-  emitf buf "main:";
-  emitf buf "  push rbp";
-  emitf buf "  mov rbp, rsp";
-  emitf buf "  sub rsp, %d" env.offset;
-  Buffer.add_buffer buf buf_main;
-  Buffer.contents buf
+  let st = { funs = Buffer.create 256 } in
+  let main_env = Env.create () in
+  let main_buf = Buffer.create 256 in
+  gen_expr st main_buf ast main_env;
+  emitf main_buf "  pop rax";
+  emitf main_buf "  mov rsp, rbp";
+  emitf main_buf "  pop rbp";
+  emitf main_buf "  ret";
+
+  let out = Buffer.create 512 in
+  emitf out ".intel_syntax noprefix";
+  emitf out ".text";
+  emitf out ".globl main";
+  Buffer.add_buffer out st.funs;
+  emitf out "main:";
+  emitf out "  push rbp";
+  emitf out "  mov rbp, rsp";
+  emitf out "  sub rsp, %d" main_env.frame.size;
+  Buffer.add_buffer out main_buf;
+  Buffer.contents out

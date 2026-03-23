@@ -13,83 +13,118 @@ let consume st =
 
 let expect st expected =
   let t = peek st in
-  if t.kind = expected then advance st
+  if t.kind = expected then (
+    advance st;
+    t)
   else
     Error.raise_parse t.span
       (Printf.sprintf "expected %s but got %s"
          (Token.string_of_kind expected)
          (Token.string_of_kind t.kind))
 
-let precedence token_kind =
-  let open Token in
-  match token_kind with Plus | Minus -> 2 | Star | Slash -> 3 | _ -> 0
+let rec parse_atom st =
+  let tok = consume st in
+  match tok.kind with
+  | Token.Int n -> Ast.int n tok.span
+  | Token.Var var -> Ast.var var tok.span
+  | Token.LParen ->
+      let e = parse_expr st in
+      let rpar = expect st Token.RParen in
+      Ast.with_span e (Span.merge tok.span rpar.span)
+  | _ -> Error.raise_parse tok.span "expected expression"
 
-let is_right_assoc tok = match tok with _ -> false
+and parse_app st =
+  let rec loop fn =
+    let tok = peek st in
+    match tok.kind with
+    | Token.Int _ | Token.Var _ | Token.LParen ->
+        let arg = parse_atom st in
+        let fn = Ast.app fn arg in
+        loop fn
+    | _ -> fn
+  in
+  let fn = parse_atom st in
+  loop fn
 
-let is_binop token_kind =
-  let open Token in
-  match token_kind with Plus | Minus | Star | Slash -> true | _ -> false
-
-let rec parse_prefix st =
+and parse_prefix st =
   let tok = peek st in
   match tok.kind with
-  | Token.Int n ->
-      advance st;
-      Ast.int n tok.span
-  | Token.Var var ->
-      advance st;
-      Ast.var var tok.span
-  | Token.LParen ->
-      advance st;
-      let e = parse_expr st in
-      expect st Token.RParen;
-      e
   | Token.Plus ->
-      advance st;
-      parse_prefix st
+      let _op = consume st in
+      let rhs = parse_prefix st in
+      Ast.with_span rhs (Span.merge tok.span rhs.span)
   | Token.Minus ->
-      advance st;
-      let e = parse_prefix st in
-      Ast.neg e (Span.merge tok.span e.span)
-  | Token.Let -> parse_let st
-  | _ -> Error.raise_parse tok.span "cannot parse"
+      let _op = consume st in
+      let rhs = parse_prefix st in
+      Ast.neg rhs (Span.merge tok.span rhs.span)
+  | _ -> parse_app st
 
-and parse_binop st min_prec =
+and parse_mul st =
   let rec loop lhs =
     let tok = peek st in
-    let op = tok.kind in
-    if is_binop op then
-      let prec = precedence op in
-      if prec < min_prec then lhs
-      else (
-        advance st;
-        let next_min_prec = if is_right_assoc op then prec else prec + 1 in
-        let rhs = parse_binop st next_min_prec in
-        let lhs' =
-          match op with
-          | Token.Plus -> Ast.bin_expr Add lhs rhs
-          | Token.Minus -> Ast.bin_expr Sub lhs rhs
-          | Token.Star -> Ast.bin_expr Mul lhs rhs
-          | Token.Slash -> Ast.bin_expr Div lhs rhs
-          | _ -> Error.raise_parse tok.span "internal error"
-        in
-        loop lhs')
-    else lhs
+    match tok.kind with
+    | Token.Star ->
+        let _op = consume st in
+        let rhs = parse_mul st in
+        let lhs = Ast.bin_expr Mul lhs rhs in
+        loop lhs
+    | Token.Slash ->
+        let _op = consume st in
+        let rhs = parse_mul st in
+        let lhs = Ast.bin_expr Div lhs rhs in
+        loop lhs
+    | _ -> lhs
   in
   let lhs = parse_prefix st in
   loop lhs
 
+and parse_add st =
+  let rec loop lhs =
+    let tok = peek st in
+    match tok.kind with
+    | Token.Plus ->
+        let _op = consume st in
+        let rhs = parse_mul st in
+        let lhs = Ast.bin_expr Add lhs rhs in
+        loop lhs
+    | Token.Minus ->
+        let _op = consume st in
+        let rhs = parse_mul st in
+        let lhs = Ast.bin_expr Sub lhs rhs in
+        loop lhs
+    | _ -> lhs
+  in
+  let lhs = parse_mul st in
+  loop lhs
+
 and parse_let st =
-  expect st Token.Let;
+  let start = expect st Token.Let in
   let tok = consume st in
   match tok.kind with
   | Token.Var var ->
-      expect st Token.Equal;
+      let _eq = expect st Token.Equal in
       let e1 = parse_expr st in
-      expect st Token.In;
+      let _in = expect st Token.In in
       let e2 = parse_expr st in
-      Ast.let_expr var e1 e2 (Span.merge tok.span e2.span)
+      Ast.let_expr var e1 e2 (Span.merge start.span e2.span)
   | _ -> Error.raise_parse tok.span "expected identifier"
 
-and parse_expr st = parse_binop st 0
+and parse_fun st =
+  let start = expect st Token.Fun in
+  let tok = consume st in
+  match tok.kind with
+  | Var var ->
+      let _ra = expect st Token.RArrow in
+      let e = parse_expr st in
+      Ast.fun_expr var e (Span.merge start.span e.span)
+  | _ -> Error.raise_parse tok.span "expected identifier"
+
+and parse_let_or_fun st =
+  let tok = peek st in
+  match tok.kind with
+  | Token.Let -> parse_let st
+  | Token.Fun -> parse_fun st
+  | _ -> parse_add st
+
+and parse_expr st = parse_let_or_fun st
 and parse tokens = tokens |> make_token_stream |> parse_expr

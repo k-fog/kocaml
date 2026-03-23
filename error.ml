@@ -1,9 +1,13 @@
-type t = LexError of string * Span.t | ParseError of string * Span.t
+type t =
+  | LexError of string * Span.t
+  | ParseError of string * Span.t
+  | CodegenError of string * Span.t
 
 exception Error of t
 
 let raise_lex span msg = raise (Error (LexError (msg, span)))
 let raise_parse span msg = raise (Error (ParseError (msg, span)))
+let raise_codegen span msg = raise (Error (ParseError (msg, span)))
 
 let report src (msg, (span : Span.t)) =
   prerr_endline src;

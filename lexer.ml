@@ -3,6 +3,7 @@ type t = { src : string; mutable pos : int }
 let is_space = function ' ' | '\012' | '\n' | '\r' | '\t' -> true | _ -> false
 let is_digit c = '0' <= c && c <= '9'
 let is_letter c = ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c = '_'
+let peek l = l.src.[l.pos]
 let advance l = l.pos <- l.pos + 1
 
 let skip_space l =
@@ -18,13 +19,16 @@ let next_token l =
   if len <= l.pos then make Eof l.pos l.pos
   else
     let start = l.pos in
-    match l.src.[l.pos] with
+    match peek l with
     | '+' ->
         advance l;
         make Plus start l.pos
     | '-' ->
         advance l;
-        make Minus start l.pos
+        if peek l = '>' then (
+          advance l;
+          make RArrow start l.pos)
+        else make Minus start l.pos
     | '*' ->
         advance l;
         make Star start l.pos
