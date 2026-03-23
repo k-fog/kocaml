@@ -4,7 +4,7 @@ let gen ast =
   let buf = Buffer.create 256 in
   let open Ast in
   let rec gen_expr ast =
-    match ast with
+    match ast.desc with
     | Int n -> emitf buf "  push %d" n
     | Neg e ->
         gen_expr e;

@@ -2,11 +2,12 @@ type t = { src : string; mutable pos : int }
 
 let is_space = function ' ' | '\012' | '\n' | '\r' | '\t' -> true | _ -> false
 let is_digit c = '0' <= c && c <= '9'
+let advance l = l.pos <- l.pos + 1
 
 let skip_space l =
   let len = String.length l.src in
   while l.pos < len && is_space l.src.[l.pos] do
-    l.pos <- l.pos + 1
+    advance l
   done
 
 let next_token l =
@@ -18,27 +19,27 @@ let next_token l =
     let start = l.pos in
     match l.src.[l.pos] with
     | '+' ->
-        l.pos <- l.pos + 1;
+        advance l;
         make Plus start l.pos
     | '-' ->
-        l.pos <- l.pos + 1;
+        advance l;
         make Minus start l.pos
     | '*' ->
-        l.pos <- l.pos + 1;
+        advance l;
         make Star start l.pos
     | '/' ->
-        l.pos <- l.pos + 1;
+        advance l;
         make Slash start l.pos
     | '(' ->
-        l.pos <- l.pos + 1;
+        advance l;
         make LParen start l.pos
     | ')' ->
-        l.pos <- l.pos + 1;
+        advance l;
         make RParen start l.pos
     | c when is_digit c ->
         let start = l.pos in
         while l.pos < len && is_digit l.src.[l.pos] do
-          l.pos <- l.pos + 1
+          advance l
         done;
         let n = int_of_string (String.sub l.src start (l.pos - start)) in
         make (Int n) start l.pos

@@ -35,7 +35,7 @@ let rec parse_prefix st =
   match tok.kind with
   | Token.Int n ->
       advance st;
-      Ast.Int n
+      Ast.int n tok.span
   | Token.LParen ->
       advance st;
       let e = parse_expr st in
@@ -47,7 +47,7 @@ let rec parse_prefix st =
   | Token.Minus ->
       advance st;
       let e = parse_prefix st in
-      Ast.Neg e
+      Ast.neg e (Span.merge tok.span e.span)
   | _ -> Error.raise_parse tok.span "cannot parse"
 
 and parse_binop st min_prec =
@@ -63,10 +63,10 @@ and parse_binop st min_prec =
         let rhs = parse_binop st next_min_prec in
         let lhs' =
           match op with
-          | Token.Plus -> Ast.BinExpr (Add, lhs, rhs)
-          | Token.Minus -> Ast.BinExpr (Sub, lhs, rhs)
-          | Token.Star -> Ast.BinExpr (Mul, lhs, rhs)
-          | Token.Slash -> Ast.BinExpr (Div, lhs, rhs)
+          | Token.Plus -> Ast.bin_expr Add lhs rhs
+          | Token.Minus -> Ast.bin_expr Sub lhs rhs
+          | Token.Star -> Ast.bin_expr Mul lhs rhs
+          | Token.Slash -> Ast.bin_expr Div lhs rhs
           | _ -> Error.raise_parse tok.span "internal error"
         in
         loop lhs')
