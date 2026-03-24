@@ -13,6 +13,8 @@ type kind =
   | LAngle
   | RAngle
   | LRAngle
+  | LAngleEqual
+  | RAngleEqual
   | Let
   | In
   | Fun
@@ -52,6 +54,8 @@ let string_of_kind = function
   | LAngle -> "<"
   | RAngle -> ">"
   | LRAngle -> "<>"
+  | LAngleEqual -> "<="
+  | RAngleEqual -> ">="
   | Let -> "let"
   | In -> "in"
   | Fun -> "fun"

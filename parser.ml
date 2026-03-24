@@ -1,7 +1,6 @@
 type token_stream = { tokens : Token.t array; pos : int }
 
 let make_token_stream toks = { tokens = Array.of_list toks; pos = 0 }
-
 let peek st = st.tokens.(st.pos)
 
 let advance st =
@@ -14,8 +13,7 @@ let consume st =
 
 let expect expected st =
   let t = peek st in
-  if t.kind = expected then
-    (t, advance st)
+  if t.kind = expected then (t, advance st)
   else
     Error.raise_parse t.span
       (Printf.sprintf "expected %s but got %s"
@@ -122,6 +120,14 @@ and parse_cmp st =
       let _, st = consume st in
       let rhs, st = parse_add st in
       (Ast.bin_expr Lt rhs lhs, st)
+  | Token.LAngleEqual ->
+      let _, st = consume st in
+      let rhs, st = parse_add st in
+      (Ast.bin_expr Le lhs rhs, st)
+  | Token.RAngleEqual ->
+      let _, st = consume st in
+      let rhs, st = parse_add st in
+      (Ast.bin_expr Le rhs lhs, st)
   | Token.LRAngle ->
       let _, st = consume st in
       let rhs, st = parse_add st in

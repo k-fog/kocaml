@@ -68,6 +68,10 @@ let rec gen_expr st buf ast env =
           emitf buf "  cmp rax, rdi";
           emitf buf "  setl al";
           emitf buf "  movzb eax, al"
+      | Le ->
+          emitf buf "  cmp rax, rdi";
+          emitf buf "  setle al";
+          emitf buf "  movzb eax, al"
       | Eq ->
           emitf buf "  cmp rax, rdi";
           emitf buf "  sete al";
