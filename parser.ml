@@ -96,7 +96,7 @@ and expect_var st =
 and expect_fun_expr st =
   let (fn : Ast.expr), st = parse_fun st in
   match fn.desc with
-  | Ast.Fun (arg, body) -> (arg, body, st)
+  | Ast.Fun (param, body) -> (param, body, st)
   | _ -> Error.raise_parse fn.span "expected function"
 
 and parse_let st =
@@ -112,18 +112,18 @@ and parse_let st =
   | Token.Rec ->
       let var, st = expect_var st in
       let _, st = expect Token.Equal st in
-      let arg, e1, st = expect_fun_expr st in
+      let param, e1, st = expect_fun_expr st in
       let _, st = expect Token.In st in
       let e2, st = parse_expr st in
-      (Ast.letrec var arg e1 e2 (Span.merge start.span e2.span), st)
+      (Ast.letrec var param e1 e2 (Span.merge start.span e2.span), st)
   | _ -> Error.raise_parse tok.span "expected identifier or 'rec'"
 
 and parse_fun st =
   let start, st = expect Token.Fun st in
-  let arg, st = expect_var st in
+  let param, st = expect_var st in
   let _, st = expect Token.RArrow st in
   let body, st = parse_expr st in
-  (Ast.fun_expr arg body (Span.merge start.span body.span), st)
+  (Ast.fun_expr param body (Span.merge start.span body.span), st)
 
 and parse_cmp st =
   let lhs, st = parse_add st in

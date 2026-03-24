@@ -88,11 +88,11 @@ let rec gen_expr st buf ast env =
       let offset = Env.add_local env' var in
       emitf buf "  mov [rbp-%d], rax" offset;
       gen_expr st buf e2 env'
-  | LetRec (var, arg, body, e) ->
+  | LetRec (var, param, body, e) ->
       let label = "letrec_" ^ Label.create () in
       let fn_env = Env.create () in
       let self_offset = Env.add_local fn_env var in
-      let arg_offset = Env.add_local fn_env arg in
+      let param_offset = Env.add_local fn_env param in
       let fn_body = Buffer.create 256 in
       gen_expr st fn_body body fn_env;
       emitf st.funs "%s:" label;
@@ -101,7 +101,7 @@ let rec gen_expr st buf ast env =
       emitf st.funs "  sub rsp, %d" fn_env.frame.size;
       emitf st.funs "  lea rax, [rip+%s]" label;
       emitf st.funs "  mov [rbp-%d], rax" self_offset;
-      emitf st.funs "  mov [rbp-%d], rdi" arg_offset;
+      emitf st.funs "  mov [rbp-%d], rdi" param_offset;
       Buffer.add_buffer st.funs fn_body;
       emitf st.funs "  pop rax";
       emitf st.funs "  mov rsp, rbp";
@@ -112,17 +112,17 @@ let rec gen_expr st buf ast env =
       emitf buf "  lea rax, [rip+%s]" label;
       emitf buf "  mov [rbp-%d], rax" var_offset;
       gen_expr st buf e env'
-  | Fun (arg, body) ->
+  | Fun (param, body) ->
       let label = "lambda_" ^ Label.create () in
       let fn_env = Env.create () in
-      let arg_offset = Env.add_local fn_env arg in
+      let param_offset = Env.add_local fn_env param in
       let fn_body = Buffer.create 256 in
       gen_expr st fn_body body fn_env;
       emitf st.funs "%s:" label;
       emitf st.funs "  push rbp";
       emitf st.funs "  mov rbp, rsp";
       emitf st.funs "  sub rsp, %d" fn_env.frame.size;
-      emitf st.funs "  mov [rbp-%d], rdi" arg_offset;
+      emitf st.funs "  mov [rbp-%d], rdi" param_offset;
       Buffer.add_buffer st.funs fn_body;
       emitf st.funs "  pop rax";
       emitf st.funs "  mov rsp, rbp";
