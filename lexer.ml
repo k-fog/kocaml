@@ -44,6 +44,15 @@ let next_token l =
     | ')' ->
         advance l;
         make RParen start l.pos
+    | '<' ->
+        advance l;
+        if peek l = '>' then (
+          advance l;
+          make LRAngle start l.pos)
+        else make LAngle start l.pos
+    | '>' ->
+        advance l;
+        make RAngle start l.pos
     | c when is_digit c ->
         let start = l.pos in
         while l.pos < len && is_digit l.src.[l.pos] do

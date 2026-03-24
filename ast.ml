@@ -1,7 +1,8 @@
-type binop = Add | Sub | Mul | Div
+type binop = Add | Sub | Mul | Div | Lt | Eq | Neq
 
 type expr_desc =
   | Int of int
+  | Bool of bool
   | Var of string
   | BinExpr of binop * expr * expr
   | Neg of expr
@@ -13,6 +14,7 @@ and expr = { desc : expr_desc; span : Span.t }
 
 let with_span e span = { e with span }
 let int n span = { desc = Int n; span }
+let bool b span = { desc = Bool b; span }
 let var v span = { desc = Var v; span }
 
 let bin_expr op lhs rhs =

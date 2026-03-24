@@ -26,6 +26,7 @@ let rec parse_atom st =
   let tok = consume st in
   match tok.kind with
   | Token.Int n -> Ast.int n tok.span
+  | Token.Bool b -> Ast.bool b tok.span
   | Token.Var var -> Ast.var var tok.span
   | Token.LParen ->
       let e = parse_expr st in
@@ -119,12 +120,34 @@ and parse_fun st =
       Ast.fun_expr var e (Span.merge start.span e.span)
   | _ -> Error.raise_parse tok.span "expected identifier"
 
+and parse_cmp st =
+  let lhs = parse_add st in
+  let tok = peek st in
+  match tok.kind with
+  | Token.LAngle ->
+      let _la = consume st in
+      let rhs = parse_add st in
+      Ast.bin_expr Lt lhs rhs
+  | Token.RAngle ->
+      let _ra = consume st in
+      let rhs = parse_add st in
+      Ast.bin_expr Lt rhs lhs
+  | Token.LRAngle ->
+      let _lra = consume st in
+      let rhs = parse_add st in
+      Ast.bin_expr Neq lhs rhs
+  | Token.Equal ->
+      let _eq = consume st in
+      let rhs = parse_add st in
+      Ast.bin_expr Eq lhs rhs
+  | _ -> lhs
+
 and parse_let_or_fun st =
   let tok = peek st in
   match tok.kind with
   | Token.Let -> parse_let st
   | Token.Fun -> parse_fun st
-  | _ -> parse_add st
+  | _ -> parse_cmp st
 
 and parse_expr st = parse_let_or_fun st
 and parse tokens = tokens |> make_token_stream |> parse_expr

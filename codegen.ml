@@ -40,6 +40,7 @@ let rec gen_expr st buf ast env =
   let open Ast in
   match ast.desc with
   | Int n -> emitf buf "  push %d" n
+  | Bool b -> emitf buf "  push %d" (Bool.to_int b)
   | Var var ->
       if not (Env.mem env var) then
         Error.raise_codegen ast.span (Printf.sprintf "unbound variable: %s" var);
@@ -62,7 +63,19 @@ let rec gen_expr st buf ast env =
       | Mul -> emitf buf "  imul rax, rdi"
       | Div ->
           emitf buf "  cqo";
-          emitf buf "  idiv rdi");
+          emitf buf "  idiv rdi"
+      | Lt ->
+          emitf buf "  cmp rax, rdi";
+          emitf buf "  setl al";
+          emitf buf "  movzb eax, al"
+      | Eq ->
+          emitf buf "  cmp rax, rdi";
+          emitf buf "  sete al";
+          emitf buf "  movzb eax, al"
+      | Neq ->
+          emitf buf "  cmp rax, rdi";
+          emitf buf "  setne al";
+          emitf buf "  movzb eax, al");
       emitf buf "  push rax"
   | Let (var, e1, e2) ->
       gen_expr st buf e1 env;
