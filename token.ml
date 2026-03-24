@@ -7,6 +7,9 @@ type kind =
   | Star
   | Slash
   | Equal
+  | Not
+  | AndAnd
+  | PipePipe
   | LParen
   | RParen
   | RArrow
@@ -39,6 +42,7 @@ let keywords =
     ("else", Else);
     ("true", Bool true);
     ("false", Bool false);
+    ("not", Not);
   ]
 
 let string_of_kind = function
@@ -50,6 +54,9 @@ let string_of_kind = function
   | Star -> "*"
   | Slash -> "/"
   | Equal -> "="
+  | Not -> "not"
+  | AndAnd -> "&&"
+  | PipePipe -> "||"
   | LParen -> "("
   | RParen -> ")"
   | RArrow -> "->"

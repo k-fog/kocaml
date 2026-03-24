@@ -47,11 +47,18 @@ let rec gen_expr st buf ast env =
       let offset = Env.find env var in
       emitf buf "  mov rax, [rbp-%d]" offset;
       emitf buf "  push rax"
-  | Neg e ->
-      gen_expr st buf e env;
+  | UnaryExpr (op, rhs) -> (
+      gen_expr st buf rhs env;
       emitf buf "  pop rax";
-      emitf buf "  neg rax";
-      emitf buf "  push rax"
+      match op with
+      | Neg ->
+          emitf buf "  neg rax";
+          emitf buf "  push rax"
+      | Not ->
+          emitf buf "  cmp rax, 0";
+          emitf buf "  sete al";
+          emitf buf "  movzx eax, al";
+          emitf buf "  push rax")
   | BinExpr (op, lhs, rhs) ->
       gen_expr st buf lhs env;
       gen_expr st buf rhs env;
@@ -80,6 +87,32 @@ let rec gen_expr st buf ast env =
           emitf buf "  cmp rax, rdi";
           emitf buf "  setne al";
           emitf buf "  movzb eax, al");
+      emitf buf "  push rax"
+  | And (e1, e2) ->
+      let label = "endand_" ^ Label.create () in
+      gen_expr st buf e1 env;
+      emitf buf "  pop rax";
+      emitf buf "  cmp rax, 0";
+      emitf buf "  je %s" label;
+      gen_expr st buf e2 env;
+      emitf buf "  pop rax";
+      emitf buf "  cmp rax, 0";
+      emitf buf "%s:" label;
+      emitf buf "  setne al";
+      emitf buf "  movzb rax, al";
+      emitf buf "  push rax"
+  | Or (e1, e2) ->
+      let label = "endor_" ^ Label.create () in
+      gen_expr st buf e1 env;
+      emitf buf "  pop rax";
+      emitf buf "  cmp rax, 0";
+      emitf buf "  jne %s" label;
+      gen_expr st buf e2 env;
+      emitf buf "  pop rax";
+      emitf buf "  cmp rax, 0";
+      emitf buf "%s:" label;
+      emitf buf "  setne al";
+      emitf buf "  movzb rax, al";
       emitf buf "  push rax"
   | Let (var, e1, e2) ->
       gen_expr st buf e1 env;

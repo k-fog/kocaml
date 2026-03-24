@@ -52,7 +52,11 @@ and parse_prefix st =
   | Token.Minus ->
       let tok, st = consume st in
       let rhs, st = parse_prefix st in
-      (Ast.neg rhs (Span.merge tok.span rhs.span), st)
+      (Ast.unary_expr Neg rhs (Span.merge tok.span rhs.span), st)
+  | Token.Not ->
+      let tok, st = consume st in
+      let rhs, st = parse_prefix st in
+      (Ast.unary_expr Not rhs (Span.merge tok.span rhs.span), st)
   | _ -> parse_app st
 
 and parse_mul st =
@@ -154,6 +158,26 @@ and parse_cmp st =
       (Ast.bin_expr Eq lhs rhs, st)
   | _ -> (lhs, st)
 
+and parse_and st =
+  let lhs, st = parse_cmp st in
+  let tok = peek st in
+  match tok.kind with
+  | Token.AndAnd ->
+      let _, st = consume st in
+      let rhs, st = parse_and st in
+      (Ast.and_expr lhs rhs, st)
+  | _ -> (lhs, st)
+
+and parse_or st =
+  let lhs, st = parse_and st in
+  let tok = peek st in
+  match tok.kind with
+  | Token.PipePipe ->
+      let _, st = consume st in
+      let rhs, st = parse_or st in
+      (Ast.or_expr lhs rhs, st)
+  | _ -> (lhs, st)
+
 and parse_if st =
   match (peek st).kind with
   | Token.If ->
@@ -164,7 +188,7 @@ and parse_if st =
       let _, st = expect Token.Else st in
       let e2, st = parse_expr st in
       (Ast.if_expr cond e1 e2 (Span.merge tok.span e2.span), st)
-  | _ -> parse_cmp st
+  | _ -> parse_or st
 
 and parse_let_or_fun st =
   match (peek st).kind with

@@ -38,6 +38,20 @@ let next_token l =
     | '=' ->
         advance l;
         make Equal start l.pos
+    | '&' -> (
+        advance l;
+        match peek l with
+        | '&' ->
+            advance l;
+            make AndAnd start l.pos
+        | _ -> Error.raise_lex (Span.make l.pos l.pos) "expected '&'")
+    | '|' -> (
+        advance l;
+        match peek l with
+        | '|' ->
+            advance l;
+            make PipePipe start l.pos
+        | _ -> Error.raise_lex (Span.make l.pos l.pos) "expected '|'")
     | '(' ->
         advance l;
         make LParen start l.pos
