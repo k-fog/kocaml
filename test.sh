@@ -61,4 +61,6 @@ assert   0 'true && false'
 assert   1 'true && true && true'
 assert   1 'false || false || true'
 assert   1 '1 < 2 && 3 < 4'
+assert   3 '1 + if true then 2 else 3'
+assert   3 '1 + let x = 2 in x'
 echo "All tests passed!"

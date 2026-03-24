@@ -20,27 +20,77 @@ let expect expected st =
          (Token.string_of_kind expected)
          (Token.string_of_kind t.kind))
 
-let rec parse_atom st =
+let rec parse_if st =
+  let tok, st = expect Token.If st in
+  let cond, st = parse_expr st in
+  let _, st = expect Token.Then st in
+  let e1, st = parse_expr st in
+  let _, st = expect Token.Else st in
+  let e2, st = parse_expr st in
+  (Ast.if_expr cond e1 e2 (Span.merge tok.span e2.span), st)
+
+and expect_var st =
   let tok, st = consume st in
   match tok.kind with
-  | Token.Int n -> (Ast.int n tok.span, st)
-  | Token.Bool b -> (Ast.bool b tok.span, st)
-  | Token.Var var -> (Ast.var var tok.span, st)
+  | Token.Var var -> (var, st)
+  | _ -> Error.raise_parse tok.span "expected identifier"
+
+and expect_fun_expr st =
+  let (fn : Ast.expr), st = parse_fun st in
+  match fn.desc with
+  | Ast.Fun (param, body) -> (param, body, st)
+  | _ -> Error.raise_parse fn.span "expected function"
+
+and parse_let st =
+  let start, st = expect Token.Let st in
+  let tok, st = consume st in
+  match tok.kind with
+  | Token.Var var ->
+      let _, st = expect Token.Equal st in
+      let e1, st = parse_expr st in
+      let _, st = expect Token.In st in
+      let e2, st = parse_expr st in
+      (Ast.let_expr var e1 e2 (Span.merge start.span e2.span), st)
+  | Token.Rec ->
+      let var, st = expect_var st in
+      let _, st = expect Token.Equal st in
+      let param, e1, st = expect_fun_expr st in
+      let _, st = expect Token.In st in
+      let e2, st = parse_expr st in
+      (Ast.letrec var param e1 e2 (Span.merge start.span e2.span), st)
+  | _ -> Error.raise_parse tok.span "expected identifier or 'rec'"
+
+and parse_fun st =
+  let start, st = expect Token.Fun st in
+  let param, st = expect_var st in
+  let _, st = expect Token.RArrow st in
+  let body, st = parse_expr st in
+  (Ast.fun_expr param body (Span.merge start.span body.span), st)
+
+and parse_primary st =
+  let tok, st' = consume st in
+  match tok.kind with
+  | Token.Int n -> (Ast.int n tok.span, st')
+  | Token.Bool b -> (Ast.bool b tok.span, st')
+  | Token.Var var -> (Ast.var var tok.span, st')
   | Token.LParen ->
-      let e, st = parse_expr st in
-      let rpar, st = expect Token.RParen st in
-      (Ast.with_span e (Span.merge tok.span rpar.span), st)
+      let e, st' = parse_expr st' in
+      let rpar, st' = expect Token.RParen st' in
+      (Ast.with_span e (Span.merge tok.span rpar.span), st')
+  | Token.If -> parse_if st
+  | Token.Let -> parse_let st
+  | Token.Fun -> parse_fun st
   | _ -> Error.raise_parse tok.span "expected expression"
 
 and parse_app st =
   let rec loop fn st =
     match (peek st).kind with
     | Token.Int _ | Token.Bool _ | Token.Var _ | Token.LParen ->
-        let arg, st = parse_atom st in
+        let arg, st = parse_primary st in
         loop (Ast.app fn arg) st
     | _ -> (fn, st)
   in
-  let fn, st = parse_atom st in
+  let fn, st = parse_primary st in
   loop fn st
 
 and parse_prefix st =
@@ -91,44 +141,6 @@ and parse_add st =
   in
   loop lhs st
 
-and expect_var st =
-  let tok, st = consume st in
-  match tok.kind with
-  | Token.Var var -> (var, st)
-  | _ -> Error.raise_parse tok.span "expected identifier"
-
-and expect_fun_expr st =
-  let (fn : Ast.expr), st = parse_fun st in
-  match fn.desc with
-  | Ast.Fun (param, body) -> (param, body, st)
-  | _ -> Error.raise_parse fn.span "expected function"
-
-and parse_let st =
-  let start, st = expect Token.Let st in
-  let tok, st = consume st in
-  match tok.kind with
-  | Token.Var var ->
-      let _, st = expect Token.Equal st in
-      let e1, st = parse_expr st in
-      let _, st = expect Token.In st in
-      let e2, st = parse_expr st in
-      (Ast.let_expr var e1 e2 (Span.merge start.span e2.span), st)
-  | Token.Rec ->
-      let var, st = expect_var st in
-      let _, st = expect Token.Equal st in
-      let param, e1, st = expect_fun_expr st in
-      let _, st = expect Token.In st in
-      let e2, st = parse_expr st in
-      (Ast.letrec var param e1 e2 (Span.merge start.span e2.span), st)
-  | _ -> Error.raise_parse tok.span "expected identifier or 'rec'"
-
-and parse_fun st =
-  let start, st = expect Token.Fun st in
-  let param, st = expect_var st in
-  let _, st = expect Token.RArrow st in
-  let body, st = parse_expr st in
-  (Ast.fun_expr param body (Span.merge start.span body.span), st)
-
 and parse_cmp st =
   let lhs, st = parse_add st in
   match (peek st).kind with
@@ -178,25 +190,7 @@ and parse_or st =
       (Ast.or_expr lhs rhs, st)
   | _ -> (lhs, st)
 
-and parse_if st =
-  match (peek st).kind with
-  | Token.If ->
-      let tok, st = consume st in
-      let cond, st = parse_expr st in
-      let _, st = expect Token.Then st in
-      let e1, st = parse_expr st in
-      let _, st = expect Token.Else st in
-      let e2, st = parse_expr st in
-      (Ast.if_expr cond e1 e2 (Span.merge tok.span e2.span), st)
-  | _ -> parse_or st
-
-and parse_let_or_fun st =
-  match (peek st).kind with
-  | Token.Let -> parse_let st
-  | Token.Fun -> parse_fun st
-  | _ -> parse_if st
-
-and parse_expr st = parse_let_or_fun st
+and parse_expr st = parse_or st
 
 let parse tokens =
   let st = make_token_stream tokens in
