@@ -87,6 +87,18 @@ and parse_add st =
   in
   loop lhs st
 
+and expect_var st =
+  let tok, st = consume st in
+  match tok.kind with
+  | Token.Var var -> (var, st)
+  | _ -> Error.raise_parse tok.span "expected identifier"
+
+and expect_fun_expr st =
+  let (fn : Ast.expr), st = parse_fun st in
+  match fn.desc with
+  | Ast.Fun (arg, body) -> (arg, body, st)
+  | _ -> Error.raise_parse fn.span "expected function"
+
 and parse_let st =
   let start, st = expect Token.Let st in
   let tok, st = consume st in
@@ -97,17 +109,21 @@ and parse_let st =
       let _, st = expect Token.In st in
       let e2, st = parse_expr st in
       (Ast.let_expr var e1 e2 (Span.merge start.span e2.span), st)
-  | _ -> Error.raise_parse tok.span "expected identifier"
+  | Token.Rec ->
+      let var, st = expect_var st in
+      let _, st = expect Token.Equal st in
+      let arg, e1, st = expect_fun_expr st in
+      let _, st = expect Token.In st in
+      let e2, st = parse_expr st in
+      (Ast.letrec var arg e1 e2 (Span.merge start.span e2.span), st)
+  | _ -> Error.raise_parse tok.span "expected identifier or 'rec'"
 
 and parse_fun st =
   let start, st = expect Token.Fun st in
-  let tok, st = consume st in
-  match tok.kind with
-  | Token.Var var ->
-      let _, st = expect Token.RArrow st in
-      let e, st = parse_expr st in
-      (Ast.fun_expr var e (Span.merge start.span e.span), st)
-  | _ -> Error.raise_parse tok.span "expected identifier"
+  let arg, st = expect_var st in
+  let _, st = expect Token.RArrow st in
+  let body, st = parse_expr st in
+  (Ast.fun_expr arg body (Span.merge start.span body.span), st)
 
 and parse_cmp st =
   let lhs, st = parse_add st in

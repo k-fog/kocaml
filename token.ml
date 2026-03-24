@@ -16,6 +16,7 @@ type kind =
   | LAngleEqual
   | RAngleEqual
   | Let
+  | Rec
   | In
   | Fun
   | If
@@ -30,6 +31,7 @@ let make kind start finish = { kind; span = { start; finish } }
 let keywords =
   [
     ("let", Let);
+    ("rec", Rec);
     ("in", In);
     ("fun", Fun);
     ("if", If);
@@ -57,6 +59,7 @@ let string_of_kind = function
   | LAngleEqual -> "<="
   | RAngleEqual -> ">="
   | Let -> "let"
+  | Rec -> "rec"
   | In -> "in"
   | Fun -> "fun"
   | If -> "if"

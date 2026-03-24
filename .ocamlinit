@@ -1,0 +1,7 @@
+#mod_use "span.ml";;
+#mod_use "error.ml";;
+#mod_use "token.ml";;
+#mod_use "lexer.ml";;
+#mod_use "ast.ml";;
+#mod_use "parser.ml";;
+#mod_use "codegen.ml";;
