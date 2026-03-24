@@ -109,6 +109,18 @@ let rec gen_expr st buf ast env =
       emitf buf "  pop rax";
       emitf buf "  call rax";
       emitf buf "  push rax"
+  | If (cond, e1, e2) ->
+      gen_expr st buf cond env;
+      emitf buf "  pop rax";
+      emitf buf "  test rax, rax";
+      let label = Label.create () in
+      emitf buf "  je else_%s" label;
+      emitf buf "then_%s:" label;
+      gen_expr st buf e1 env;
+      emitf buf "  jmp endif_%s" label;
+      emitf buf "else_%s:" label;
+      gen_expr st buf e2 env;
+      emitf buf "endif_%s:" label
 
 let gen ast =
   let st = { funs = Buffer.create 256 } in

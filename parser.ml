@@ -142,12 +142,24 @@ and parse_cmp st =
       Ast.bin_expr Eq lhs rhs
   | _ -> lhs
 
+and parse_if st =
+  let tok = peek st in
+  if tok.kind = If then
+    let _if = consume st in
+    let cond = parse_expr st in
+    let _then = expect st Token.Then in
+    let e1 = parse_expr st in
+    let _else = expect st Token.Else in
+    let e2 = parse_expr st in
+    Ast.if_expr cond e1 e2 (Span.merge tok.span e2.span)
+  else parse_cmp st
+
 and parse_let_or_fun st =
   let tok = peek st in
   match tok.kind with
   | Token.Let -> parse_let st
   | Token.Fun -> parse_fun st
-  | _ -> parse_cmp st
+  | _ -> parse_if st
 
 and parse_expr st = parse_let_or_fun st
 and parse tokens = tokens |> make_token_stream |> parse_expr

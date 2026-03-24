@@ -17,6 +17,8 @@ type kind =
   | In
   | Fun
   | If
+  | Then
+  | Else
   | Eof
 
 type t = { kind : kind; span : Span.t }
@@ -29,6 +31,8 @@ let keywords =
     ("in", In);
     ("fun", Fun);
     ("if", If);
+    ("then", Then);
+    ("else", Else);
     ("true", Bool true);
     ("false", Bool false);
   ]
@@ -52,4 +56,6 @@ let string_of_kind = function
   | In -> "in"
   | Fun -> "fun"
   | If -> "if"
+  | Then -> "then"
+  | Else -> "else"
   | Eof -> "<EOF>"

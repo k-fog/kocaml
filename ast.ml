@@ -9,6 +9,7 @@ type expr_desc =
   | Let of string * expr * expr
   | Fun of string * expr
   | App of expr * expr
+  | If of expr * expr * expr
 
 and expr = { desc : expr_desc; span : Span.t }
 
@@ -24,3 +25,4 @@ let neg n span = { desc = Neg n; span }
 let let_expr var e1 e2 span = { desc = Let (var, e1, e2); span }
 let fun_expr var e span = { desc = Fun (var, e); span }
 let app fn arg = { desc = App (fn, arg); span = Span.merge fn.span arg.span }
+let if_expr cond e1 e2 span = { desc = If (cond, e1, e2); span }
