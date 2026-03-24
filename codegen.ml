@@ -25,14 +25,7 @@ module Env = struct
   let mem env name = Hashtbl.mem env.table name
 end
 
-module Label = struct
-  let counter = ref 0
-
-  let create () =
-    let label = string_of_int !counter in
-    incr counter;
-    label
-end
+let make_label prefix = Printf.sprintf "%s.%d" prefix (Id.gen ())
 
 type state = { funs : Buffer.t }
 
@@ -89,7 +82,7 @@ let rec gen_expr st buf ast env =
           emitf buf "  movzb eax, al");
       emitf buf "  push rax"
   | And (e1, e2) ->
-      let label = "endand_" ^ Label.create () in
+      let label = make_label "endand" in
       gen_expr st buf e1 env;
       emitf buf "  pop rax";
       emitf buf "  cmp rax, 0";
@@ -102,7 +95,7 @@ let rec gen_expr st buf ast env =
       emitf buf "  movzb rax, al";
       emitf buf "  push rax"
   | Or (e1, e2) ->
-      let label = "endor_" ^ Label.create () in
+      let label = make_label "endor" in
       gen_expr st buf e1 env;
       emitf buf "  pop rax";
       emitf buf "  cmp rax, 0";
@@ -122,7 +115,7 @@ let rec gen_expr st buf ast env =
       emitf buf "  mov [rbp-%d], rax" offset;
       gen_expr st buf e2 env'
   | LetRec (var, param, body, e) ->
-      let label = "letrec_" ^ Label.create () in
+      let label = make_label "letrec" in
       let fn_env = Env.create () in
       let self_offset = Env.add_local fn_env var in
       let param_offset = Env.add_local fn_env param in
@@ -146,7 +139,7 @@ let rec gen_expr st buf ast env =
       emitf buf "  mov [rbp-%d], rax" var_offset;
       gen_expr st buf e env'
   | Fun (param, body) ->
-      let label = "lambda_" ^ Label.create () in
+      let label = make_label "lambda" in
       let fn_env = Env.create () in
       let param_offset = Env.add_local fn_env param in
       let fn_body = Buffer.create 256 in
@@ -174,14 +167,14 @@ let rec gen_expr st buf ast env =
       gen_expr st buf cond env;
       emitf buf "  pop rax";
       emitf buf "  test rax, rax";
-      let label = Label.create () in
-      emitf buf "  je else_%s" label;
-      emitf buf "then_%s:" label;
+      let id = Id.gen () in
+      emitf buf "  je else_%d" id;
+      emitf buf "then_%d:" id;
       gen_expr st buf e1 env;
-      emitf buf "  jmp endif_%s" label;
-      emitf buf "else_%s:" label;
+      emitf buf "  jmp endif_%d" id;
+      emitf buf "else_%d:" id;
       gen_expr st buf e2 env;
-      emitf buf "endif_%s:" label
+      emitf buf "endif_%d:" id
 
 let gen ast =
   let st = { funs = Buffer.create 256 } in
