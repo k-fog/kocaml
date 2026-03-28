@@ -1,12 +1,18 @@
 #!/bin/bash
 
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+
 assert() {
     expected="$1"
     input="$2"
 
-    echo "$input" | ./kocaml > tmp.s
-    cc -Wa,--noexecstack -o tmp tmp.s
-    ./tmp
+    s_file="$tmpdir/tmp.s"
+    out_file="$tmpdir/tmp.out"
+
+    echo "$input" | ./kocaml > "$s_file"
+    cc -Wa,--noexecstack -o "$out_file" "$s_file"
+    "$out_file"
     actual="$?"
 
     if [ "$actual" = "$expected" ]; then
