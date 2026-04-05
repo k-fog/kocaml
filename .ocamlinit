@@ -6,5 +6,5 @@
 #mod_use "parser.ml";;
 #mod_use "id.ml";;
 #mod_use "alpha.ml";;
-#mod_use "analysis.ml";;
+#mod_use "closure.ml";;
 #mod_use "codegen.ml";;

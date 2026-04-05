@@ -1,8 +1,8 @@
 let () =
   let src = read_line () in
   try
-    src |> Lexer.tokenize |> Parser.parse |> Alpha.convert |> Codegen.gen
-    |> print_endline
+    src |> Lexer.tokenize |> Parser.parse |> Alpha.convert |> Closure.convert
+    |> Codegen.gen |> print_endline
   with Error.Error e -> (
     match e with
     | Error.LexError (msg, span) -> Error.report src (msg, span)

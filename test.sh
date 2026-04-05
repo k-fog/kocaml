@@ -69,4 +69,5 @@ assert   1 'false || false || true'
 assert   1 '1 < 2 && 3 < 4'
 assert   3 '1 + if true then 2 else 3'
 assert   3 '1 + let x = 2 in x'
+assert   3 'let x = 1 in let f = fun y -> x + y in f 2'
 echo "All tests passed!"

@@ -36,10 +36,12 @@ let rec gen_expr st buf ast env =
   | Bool b -> emitf buf "  push %d" (Bool.to_int b)
   | Var var ->
       if not (Env.mem env var) then
-        Error.raise_codegen ast.span (Printf.sprintf "unbound variable: %s" var);
-      let offset = Env.find env var in
-      emitf buf "  mov rax, [rbp-%d]" offset;
-      emitf buf "  push rax"
+        let var = Alpha.restore var in
+        Error.raise_codegen ast.span (Printf.sprintf "unbound value %s" var)
+      else
+        let offset = Env.find env var in
+        emitf buf "  mov rax, [rbp-%d]" offset;
+        emitf buf "  push rax"
   | UnaryExpr (op, rhs) -> (
       gen_expr st buf rhs env;
       emitf buf "  pop rax";
@@ -107,6 +109,18 @@ let rec gen_expr st buf ast env =
       emitf buf "  setne al";
       emitf buf "  movzb rax, al";
       emitf buf "  push rax"
+  | If (cond, e1, e2) ->
+      gen_expr st buf cond env;
+      emitf buf "  pop rax";
+      emitf buf "  test rax, rax";
+      let id = Id.gen () in
+      emitf buf "  je else_%d" id;
+      emitf buf "then_%d:" id;
+      gen_expr st buf e1 env;
+      emitf buf "  jmp endif_%d" id;
+      emitf buf "else_%d:" id;
+      gen_expr st buf e2 env;
+      emitf buf "endif_%d:" id
   | Let (var, e1, e2) ->
       gen_expr st buf e1 env;
       emitf buf "  pop rax";
@@ -163,18 +177,6 @@ let rec gen_expr st buf ast env =
       emitf buf "  pop rax";
       emitf buf "  call rax";
       emitf buf "  push rax"
-  | If (cond, e1, e2) ->
-      gen_expr st buf cond env;
-      emitf buf "  pop rax";
-      emitf buf "  test rax, rax";
-      let id = Id.gen () in
-      emitf buf "  je else_%d" id;
-      emitf buf "then_%d:" id;
-      gen_expr st buf e1 env;
-      emitf buf "  jmp endif_%d" id;
-      emitf buf "else_%d:" id;
-      gen_expr st buf e2 env;
-      emitf buf "endif_%d:" id
 
 let gen ast =
   let st = { funs = Buffer.create 256 } in
